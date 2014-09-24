@@ -21,7 +21,7 @@
 #define luai_userstateclose(L)      LuaLockFinalState(L)
 
 #undef luai_userstatefree
-#define luai_userstatefree(L1)      LuaLockFinalThread(NULL,L1)
+#define luai_userstatefree(L,L1)      LuaLockFinalThread(L,L1)
 
 #include <pthread.h>
 
