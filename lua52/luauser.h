@@ -58,4 +58,6 @@ void LockMainState(lua_State *L);
 void UnLockMainState(lua_State *L);
 
 void LuaError(lua_State *L);
+
+LUALIB_API int luaL_typerror (lua_State *L, int narg, const char *tname);
 #endif
