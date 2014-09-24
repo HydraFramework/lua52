@@ -12,6 +12,6 @@ Pod::Spec.new do |s|
   s.source       = { :git => "https://github.com/HydraFramework/lua51.git", :tag => "v0.0.1" }
   s.source_files  = "lua-5.2.3/src/*.{h,c}", "lua52/*.{h,c}"
   s.exclude_files = "lua-5.2.3/src/lua.c", "lua-5.2.3/src/luac.c"
-  s.compiler_flags  = '-DLUA_USER_H="\"luauser.h\""'
+  s.compiler_flags  = '-DLUA_USER_H="\"luauser.h\"" -DLUA_COMPAT_ALL -DLUA_COMPAT_MODULE'
   s.header_dir = 'lua52'
 end
