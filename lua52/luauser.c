@@ -19,46 +19,42 @@
 
 #endif
 
-#define STATEDATA_TO_CO(L) ((StateData *)((unsigned char *)L - LUAI_EXTRASPACE))->co
-#define STATEDATA_TO_ISPAGE(L) ((StateData *)((unsigned char *)L - LUAI_EXTRASPACE))->isPage
+#define STATEDATA_TO_MAIN(L) ((StateData *)((unsigned char *)L - LUAI_EXTRASPACE))->main
 
 #ifndef GLOBAL_LOCK
-#define STATEDATA_TOLOCK(L) ((StateData *)((unsigned char *)GetMainState(L) - LUAI_EXTRASPACE))->lock
+#define STATEDATA_TOLOCK(L) ((StateData *)((unsigned char *)STATEDATA_TO_MAIN(L) - LUAI_EXTRASPACE))->lock
 #else
 pthread_mutex_t lock;
 int lockInited = 0;
 #define STATEDATA_TOLOCK(L) lock
 #endif
 
-#define STATEDATA_TO_COUNT(L) ((StateData *)((unsigned char *)GetMainState(L) - LUAI_EXTRASPACE))->count
-#define STATEDATA_TO_COUNT_PAGE(L) ((StateData *)((unsigned char *)GetPageState(L) - LUAI_EXTRASPACE))->count
+#define STATEDATA_TO_COUNT(L) ((StateData *)((unsigned char *)STATEDATA_TO_MAIN(L) - LUAI_EXTRASPACE))->count
 
 lua_State* GetMainState(lua_State *L){
-    return G(L)->mainthread;
-}
-
-lua_State* GetPageState(lua_State *L){
-    if (STATEDATA_TO_ISPAGE(L)) {
-        return STATEDATA_TO_CO(L);
+    if (L) {
+        return STATEDATA_TO_MAIN(L);
     } else {
-        return GetMainState(L);
+        return NULL;
     }
 }
 
 void LockMainState(lua_State *L){
-    pthread_mutex_lock(&STATEDATA_TOLOCK(L));
+    if (L) {
+        pthread_mutex_lock(&STATEDATA_TOLOCK(L));
+    }
 }
 
 void UnLockMainState(lua_State *L){
-    pthread_mutex_unlock(&STATEDATA_TOLOCK(L));
-}
-
-void MarkAsPage(lua_State *L){
-    STATEDATA_TO_ISPAGE(L) = 1;
-    STATEDATA_TO_CO(L) = L;
+    if (L) {
+        pthread_mutex_unlock(&STATEDATA_TOLOCK(L));
+    }
 }
 
 void LuaLockInitial(lua_State * L){
+    STATEDATA_TO_MAIN(L) = L;
+    STATEDATA_TO_COUNT(L) = 0;
+
 #ifdef GLOBAL_LOCK
     if (!lockInited) {
 #endif
@@ -71,22 +67,11 @@ void LuaLockInitial(lua_State * L){
 #ifdef GLOBAL_LOCK
     }
 #endif
-    
-    STATEDATA_TO_COUNT(L) = 0;
-    STATEDATA_TO_CO(L) = L;
-    STATEDATA_TO_ISPAGE(L) = 0;
 }
 
 void LuaLockInitialThread(lua_State * L, lua_State * co){
-    //copy page thread reference to the child.
-    if (STATEDATA_TO_ISPAGE(L)) {
-        STATEDATA_TO_ISPAGE(co) = 1;
-        STATEDATA_TO_CO(co) = STATEDATA_TO_CO(L);
-    } else {
-        STATEDATA_TO_ISPAGE(co) = 0;
-        STATEDATA_TO_CO(co) = L;
-        ((StateData *)((unsigned char *)co - LUAI_EXTRASPACE))->count = 0;
-    }
+    STATEDATA_TO_MAIN(co) = STATEDATA_TO_MAIN(L);
+    
 #ifdef DEBUG
 //    LOGD("initialThread 0x%08lX\n", (long)co);
 #endif
@@ -106,7 +91,6 @@ void LuaLockFinalThread(lua_State * L, lua_State * co){
 
 void incrRef(lua_State *L){
     lua_lock(L);
-    if (!STATEDATA_TO_ISPAGE(L)) {
 #ifdef DEBUG
 //        lua_getfield(L, LUA_REGISTRYINDEX, "dataPath");
 //        if (lua_type(L, -1) == LUA_TSTRING) {
@@ -117,19 +101,7 @@ void incrRef(lua_State *L){
 //        lua_pop(L, 1);
 #endif
         
-        STATEDATA_TO_COUNT(L)++;
-    } else {
-#ifdef DEBUG
-//        lua_getfield(L, LUA_REGISTRYINDEX, "dataPath");
-//        if (lua_type(L, -1) == LUA_TSTRING) {
-//            LOGD("0x%08lX(0x%08lX)\t%s incrRef %d -> %d\n", (long)L, (long)GetPageState(L), lua_tostring(L, -1), STATEDATA_TO_COUNT_PAGE(L), STATEDATA_TO_COUNT_PAGE(L) + 1);
-//        }
-//        lua_pop(L, 1);
-#endif
-        
-        STATEDATA_TO_COUNT(L)++;
-        STATEDATA_TO_COUNT_PAGE(L)++;
-    }
+    STATEDATA_TO_COUNT(L)++;
     lua_unlock(L);
 }
 
@@ -137,7 +109,6 @@ void decrRef(lua_State *L){
     lua_State *ROOT = GetMainState(L);
     lua_lock(ROOT);
     
-    if (!STATEDATA_TO_ISPAGE(L)) {
 #ifdef DEBUG
 //        lua_getfield(L, LUA_REGISTRYINDEX, "dataPath");
 //        if (lua_type(L, -1) == LUA_TSTRING) {
@@ -148,29 +119,11 @@ void decrRef(lua_State *L){
 //        lua_pop(L, 1);
 #endif
         
-        STATEDATA_TO_COUNT(L)--;
-    } else {
-#ifdef DEBUG
-//        lua_getfield(L, LUA_REGISTRYINDEX, "dataPath");
-//        if (lua_type(L, -1) == LUA_TSTRING) {
-//            LOGD("0x%08lX(0x%08lX)\t%s decrRef %d -> %d\n", (long)L, (long)GetPageState(L), lua_tostring(L, -1), STATEDATA_TO_COUNT_PAGE(L), STATEDATA_TO_COUNT_PAGE(L) - 1);
-//        }
-//        lua_pop(L, 1);
-#endif
-        
-        STATEDATA_TO_COUNT(L)--;
-        STATEDATA_TO_COUNT_PAGE(L)--;
-    }
+    STATEDATA_TO_COUNT(L)--;
     
     lua_unlock(ROOT);
     
-    if (STATEDATA_TO_COUNT_PAGE(L) <= 0) {
-        lua_pushthread(L);
-        lua_xmove(L, ROOT, 1);
-        
-        lua_pushnil(ROOT);
-        lua_rawset(ROOT, LUA_REGISTRYINDEX);
-        
+    if (STATEDATA_TO_COUNT(L) == 1) {
         lua_gc(ROOT, LUA_GCCOLLECT, 0);
     }
     

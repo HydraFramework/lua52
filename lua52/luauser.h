@@ -32,8 +32,7 @@ struct StateData{
     pthread_mutex_t lock;
 #endif
     volatile int count;
-    lua_State *co;
-    int isPage;
+    lua_State *main;
 };
 
 #undef LUAI_EXTRASPACE
@@ -51,8 +50,6 @@ void incrRef(lua_State *L);
 void decrRef(lua_State *L);
 
 lua_State* GetMainState(lua_State *L);
-lua_State* GetPageState(lua_State *L);
-void MarkAsPage(lua_State *L);
 
 void LockMainState(lua_State *L);
 void UnLockMainState(lua_State *L);
