@@ -3,7 +3,7 @@ Pod::Spec.new do |s|
   s.version      = "0.0.5"
   s.summary      = "lua52 library."
   s.description  = <<-DESC
-                   lua5.2.3.
+                   lua5.2.3 library.
                    DESC
   s.homepage     = "https://github.com/HydraFramework/lua51"
   s.license      = "MIT"
