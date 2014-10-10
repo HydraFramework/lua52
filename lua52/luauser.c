@@ -78,6 +78,7 @@ void LuaLockInitialThread(lua_State * L, lua_State * co){
 }
 
 void LuaLockFinalState(lua_State * L){
+    UnLockMainState(L);
 #ifndef GLOBAL_LOCK
     pthread_mutex_destroy(&STATEDATA_TOLOCK(L));
 #endif
