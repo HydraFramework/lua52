@@ -5,7 +5,7 @@
 #include "lstate.h"
 
 #ifdef __ANDROID__
-// #define DEBUG
+
 #include <android/log.h>
 #define LOG_TAG "lua.print"
 #undef LOG
@@ -93,13 +93,13 @@ void LuaLockFinalThread(lua_State * L, lua_State * co){
 void incrRef(lua_State *L){
     lua_lock(L);
 #ifdef DEBUG
-       // lua_getfield(L, LUA_REGISTRYINDEX, "dataPath");
-       // if (lua_type(L, -1) == LUA_TSTRING) {
-       //     LOGD("0x%08lX(ROOT)\t%s incrRefRoot %d -> %d\n", (long)L, lua_tostring(L, -1), STATEDATA_TO_COUNT(L), STATEDATA_TO_COUNT(L) + 1);
-       // } else {
-       //     LOGD("0x%08lX(ROOT)\t incrRefRoot %d -> %d\n", (long)L, STATEDATA_TO_COUNT(L), STATEDATA_TO_COUNT(L) + 1);
-       // }
-       // lua_pop(L, 1);
+//        lua_getfield(L, LUA_REGISTRYINDEX, "dataPath");
+//        if (lua_type(L, -1) == LUA_TSTRING) {
+//            LOGD("0x%08lX(ROOT)\t%s incrRefRoot %d -> %d\n", (long)L, lua_tostring(L, -1), STATEDATA_TO_COUNT(L), STATEDATA_TO_COUNT(L) + 1);
+//        } else {
+//            LOGD("0x%08lX(ROOT)\t incrRefRoot %d -> %d\n", (long)L, STATEDATA_TO_COUNT(L), STATEDATA_TO_COUNT(L) + 1);
+//        }
+//        lua_pop(L, 1);
 #endif
         
     STATEDATA_TO_COUNT(L)++;
@@ -111,34 +111,26 @@ void decrRef(lua_State *L){
     lua_lock(ROOT);
     
 #ifdef DEBUG
-       const char *dataPath = NULL;
-       lua_getfield(L, LUA_REGISTRYINDEX, "dataPath");
-       // if (lua_type(L, -1) == LUA_TSTRING) {
-       //     dataPath = lua_tostring(L, -1);
-       //     LOGD("0x%08lX(ROOT)\t%s decrRefRoot %d -> %d\n", (long)L, lua_tostring(L, -1), STATEDATA_TO_COUNT(L), STATEDATA_TO_COUNT(L) - 1);
-       // } else {
-       //     LOGD("0x%08lX(ROOT)\t decrRefRoot %d -> %d\n", (long)L, STATEDATA_TO_COUNT(L), STATEDATA_TO_COUNT(L) - 1);
-       // }
-       // lua_pop(L, 1);
+//        lua_getfield(L, LUA_REGISTRYINDEX, "dataPath");
+//        if (lua_type(L, -1) == LUA_TSTRING) {
+//            LOGD("0x%08lX(ROOT)\t%s decrRefRoot %d -> %d\n", (long)L, lua_tostring(L, -1), STATEDATA_TO_COUNT(L), STATEDATA_TO_COUNT(L) - 1);
+//        } else {
+//            LOGD("0x%08lX(ROOT)\t decrRefRoot %d -> %d\n", (long)L, STATEDATA_TO_COUNT(L), STATEDATA_TO_COUNT(L) - 1);
+//        }
+//        lua_pop(L, 1);
 #endif
         
-    STATEDATA_TO_COUNT(ROOT)--;
+    STATEDATA_TO_COUNT(L)--;
     
-    int rootCount = STATEDATA_TO_COUNT(ROOT);
+    lua_unlock(ROOT);
     
-    if (rootCount == 1) {
-        lua_gc(ROOT, LUA_GCCOLLECT, 0);
-    }
-    
-    if (rootCount <= 0) {
-#ifdef DEBUG
-        LOGD("dealloc state %s\n", dataPath);
-#endif
-        lua_unlock(ROOT);
+//    if (STATEDATA_TO_COUNT(L) == 1) {
+//        lua_gc(ROOT, LUA_GCCOLLECT, 0);
+//    }
 
+    if (STATEDATA_TO_COUNT(ROOT) <= 0) {
         lua_close(ROOT);
-    } else {
-        lua_unlock(ROOT);
+        printf("dealloc state\n");
     }
 }
 
