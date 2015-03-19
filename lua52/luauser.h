@@ -33,6 +33,7 @@ struct StateData{
 #endif
     volatile int count;
     lua_State *main;
+    unsigned int thread_count;
 };
 
 #undef LUAI_EXTRASPACE

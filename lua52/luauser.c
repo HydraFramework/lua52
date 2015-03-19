@@ -30,6 +30,7 @@ int lockInited = 0;
 #endif
 
 #define STATEDATA_TO_COUNT(L) ((StateData *)((unsigned char *)STATEDATA_TO_MAIN(L) - LUAI_EXTRASPACE))->count
+#define STATEDATA_TO_THEADCOUNT(L) ((StateData *)((unsigned char *)STATEDATA_TO_MAIN(L) - LUAI_EXTRASPACE))->thread_count
 
 lua_State* GetMainState(lua_State *L){
     if (L) {
@@ -54,6 +55,7 @@ void UnLockMainState(lua_State *L){
 void LuaLockInitial(lua_State * L){
     STATEDATA_TO_MAIN(L) = L;
     STATEDATA_TO_COUNT(L) = 0;
+    STATEDATA_TO_THEADCOUNT(L) = 0;
 
 #ifdef GLOBAL_LOCK
     if (!lockInited) {
@@ -71,9 +73,11 @@ void LuaLockInitial(lua_State * L){
 
 void LuaLockInitialThread(lua_State * L, lua_State * co){
     STATEDATA_TO_MAIN(co) = STATEDATA_TO_MAIN(L);
-    
+    STATEDATA_TO_THEADCOUNT(co)++;
+
 #ifdef DEBUG
-//    LOGD("initialThread 0x%08lX\n", (long)co);
+//    unsigned int thread_count = STATEDATA_TO_THEADCOUNT(co);
+//    LOGD("initialThread 0x%08lX thread_count: %d -> %d\n", (long)co, thread_count - 1, thread_count);
 #endif
 }
 
@@ -85,8 +89,10 @@ void LuaLockFinalState(lua_State * L){
 }
 
 void LuaLockFinalThread(lua_State * L, lua_State * co){
+    STATEDATA_TO_THEADCOUNT(co)--;
 #ifdef DEBUG
-//    LOGD("final thread 0x%08lX\n", (long)co);
+//    unsigned int thread_count = STATEDATA_TO_THEADCOUNT(co);
+//    LOGD("finalThread 0x%08lX thread_count: %d -> %d\n", (long)co, thread_count + 1, thread_count);
 #endif
 }
 
@@ -129,6 +135,9 @@ void decrRef(lua_State *L){
 //    }
 
     if (STATEDATA_TO_COUNT(ROOT) <= 0) {
+        if (STATEDATA_TO_THEADCOUNT(ROOT) > 0) {
+            printf("dealloc on thread_count = %d\n", STATEDATA_TO_THEADCOUNT(ROOT));
+        }
         lua_close(ROOT);
         printf("dealloc state\n");
     }
